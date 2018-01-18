@@ -1,0 +1,9 @@
+[package]
+name = "chaos_dimensionless"
+version = "0.1.0"
+authors = ["Thomas <denhollander.thomas@gmail.com>"]
+
+[dependencies]
+gnuplot = "0.0.24"
+rayon = "0.9.0"
+rand = "0.4"
