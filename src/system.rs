@@ -11,7 +11,8 @@ pub struct System {
     py: f64,
     c: f64,
     d: f64,
-    h: f64
+    h: f64,
+    t: f64,
 }
 
 impl System {
@@ -33,7 +34,7 @@ impl System {
         }
     }
 
-    fn difference(system_1: System, system_2: System) -> f64 {
+    fn difference(system_1: &System, system_2: &System) -> f64 {
         ((system_1.x - system_2.x).powi(2)
             + (system_1.y - system_2.y).powi(2)
             + (system_1.px - system_2.px).powi(2)
@@ -42,16 +43,14 @@ impl System {
     }
 
     pub fn get_exponent(&mut self) -> f64 {
-        let time = 1000;
-        let base = self;
-        let perturbation = System::new(self.x, self.y * 0.99, self.py * 0.99, h, c, d)
-            .expect("Small perturbation outside energy range");
-        let start_difference = System::difference(self, perturbation);
-        let base_later = base.skip(time).next().expect("No system");
-        let perturbation_later = perturbation.skip(time).next().expect("No system");
-        let end_difference = System::difference(base_later, perturbation_later);
+        let n = 1000;
+        let gradients = self.take(n)
+            .map(move |m| m.gradient())
+            .collect::<Vec<f64>>();
 
-        (end_difference / start_difference).ln() / time as f64
+        gradients.iter().zip(gradients.iter().skip(1))
+            .map(|(a, b)| (a / b).ln())
+            .sum::<f64>() / n as f64
     }
 
     /// Creates a new system with energy H, position (x, y) and momentum
@@ -64,7 +63,7 @@ impl System {
             None
         } else {
             let px = px_2.sqrt();
-            Some( System{ x, y, px, py, c, d, h, previous_x: None })
+            Some( System{ x, y, px, py, c, d, h, previous_x: None, t: 0.0})
         }
     }
 
@@ -83,6 +82,14 @@ impl System {
     pub fn py(&self) -> f64 {
         self.py
     }
+
+    pub fn gradient(&self) -> f64 {
+        let length = (self.x.powi(2) + self.y.powi(2)).sqrt();
+        let factor = 1.0 - 1.0 / length;
+        let dpx = - self.c * self.x * factor;
+        let dpy = - 0.5 - self.c * self.y * factor;
+        (dpx.powi(2) + dpy.powi(2) + self.px.powi(2) + self.py.powi(2)).sqrt()
+    }
 }
 
 impl Iterator for System {
@@ -95,6 +102,7 @@ impl Iterator for System {
         self.py += - 0.5 * self.d - self.c * self.d * self.y * (1.0 - 1.0 / length);
         self.x += self.d * self.px;
         self.y += self.d * self.py;
+        self.t += self.d;
 
         // Return the system
         Some(self.clone())
