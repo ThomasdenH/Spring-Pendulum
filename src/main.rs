@@ -11,32 +11,37 @@ use std::process::Command;
 
 fn main() {
     let c = 1.0 / 3.0;
-    let d = 0.001;
+    let d = 0.01;
     let h_min = -7.0 / 4.0;
     let h = h_min + 0.1;
 
-    let y_start = -3.2;
-    let y_end = -1.8;
-    let py_start = -0.4;
-    let py_end = 0.4;
+    make_poincare_map(h, c, d);
+    make_lyapunov_map(h, c, d);
+}
 
-    let size_y = 1000;
-    let size_py = 1000;
+/// Create a lyapunov exponent heat map
+fn make_lyapunov_map(h: f64, c: f64, d: f64) {
 
-    let mut matrix: Vec<f64> = Vec::new();
+    let y_start = -5.0;
+    let y_end = 0.0;
+    let py_start = -1.5;
+    let py_end = 1.5;
 
-    for y_coord in 0..size_y {
-        for py_coord in 0..size_py {
-            let y = y_start + (y_coord as f64 / size_y as f64) * (y_end - y_start);
-            let py = py_start + (py_coord as f64 / size_py as f64) * (py_end - py_start);
+    let size_y = 100;
+    let size_py = 100;
 
-            if let Some(mut sys) = System::new(0.0, y, py, h, c, d) {
-                matrix.push(sys.get_exponent());
-            } else {
-                matrix.push(0.0);
-            }
+    let matrix = (0..size_y * size_py).into_par_iter().map(|i| {
+        let y_coord = i / size_py;
+        let py_coord = i % size_py;
+        let y = y_start + (y_coord as f64 / size_y as f64) * (y_end - y_start);
+        let py = py_start + (py_coord as f64 / size_py as f64) * (py_end - py_start);
+
+        if let Some(mut sys) = System::new(0.0, y, py, h, c, d) {
+            sys.get_exponent()
+        } else {
+            0.0
         }
-    }
+    }).collect::<Vec<f64>>();
 
     let filename = format!("output/heatmap_H_{}", h);
     let filename_png = format!("output/heatmap_H_{}.png", h);
@@ -47,6 +52,7 @@ fn main() {
         .set_y_label(&"y", &[])
         .set_x_range(AutoOption::Fix(py_start), AutoOption::Fix(py_end))
         .set_y_range(AutoOption::Fix(y_start), AutoOption::Fix(y_end))
+        .set_cb_range(AutoOption::Fix(-0.002), AutoOption::Fix(0.05))
         .image(&matrix, size_y, size_py,
                Some((py_start, y_start, py_end, y_end)), &[]);
     fig.echo_to_file(&filename);
@@ -63,7 +69,8 @@ fn main() {
     println!("{}", filename);
 }
 
-/* fn make_plot() {
+/// Create a Poincaré map with random orbits.
+fn make_poincare_map(h: f64, c: f64, d: f64) {
     let points = (0..50).into_par_iter()
         .flat_map(|_| System::random(h, c, d)
             .filter(|s| s.has_crossed(0.0))
@@ -95,4 +102,4 @@ fn main() {
         .expect("Could not save file");
 
     println!("Saved file as {}", filename);
-} */
+}
