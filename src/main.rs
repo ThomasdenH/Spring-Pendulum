@@ -19,7 +19,7 @@ fn main() {
     make_lyapunov_map(h, c, d);
 }
 
-/// Create a lyapunov exponent heat map
+/// Create a Lyapunov exponent heat map
 fn make_lyapunov_map(h: f64, c: f64, d: f64) {
 
     let y_start = -5.0;
